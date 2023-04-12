@@ -12,8 +12,36 @@ order by total_spent desc;
 
 -- How many days has each customer visited the restaurant?
 
+select customer_id as customer, count(distinct(order_date)) as days_visit
+from sales
+group by customer;
+
+
 -- What was the first item from the menu purchased by each customer?
-What is the most purchased item on the menu and how many times was it purchased by all customers?
+
+SELECT sales.customer_id AS customer, menu.product_name AS first_item_purchased, order_date
+FROM sales
+LEFT JOIN menu ON sales.product_id = menu.product_id
+WHERE sales.order_date = ANY (
+        SELECT MIN(order_date) 
+        FROM sales 
+        GROUP BY customer_id
+);
+
+
+-- What is the most purchased item on the menu and how many times was it purchased by all customers?
+
+SELECT  COUNT(product_name) AS count, 
+        product_name FROM sales s 
+JOIN menu m 
+ON s.product_id = m.product_id
+GROUP BY product_name 
+ORDER BY count DESC 
+LIMIT 1
+;
+
+
+
 Which item was the most popular for each customer?
 Which item was purchased first by the customer after they became a member?
 Which item was purchased just before the customer became a member?
