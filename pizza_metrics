@@ -1,0 +1,83 @@
+-- A. PIZZA METRICS
+
+-- How many pizzas were ordered?
+
+SELECT COUNT(order_id) AS quantity_pizzas FROM customer_orders;
+
+-- How many unique customer orders were made?
+
+SELECT COUNT(DISTINCT(customer_id))FROM customer_orders;
+
+-- How many successful orders were delivered by each runner?
+
+SELECT runner_id AS runner, COUNT(order_id) AS success 
+FROM runner_orders
+WHERE cancellation ISNULL
+GROUP BY runner;
+
+-- How many of each type of pizza was delivered?
+
+SELECT names.pizza_name, COUNT(*) AS quantity
+FROM customer_orders AS orders
+JOIN pizza_names AS names ON orders.pizza_id = names.pizza_id
+JOIN runner_orders AS runner ON orders.order_id = runner.order_id
+WHERE runner.cancellation ISNULL
+GROUP BY pizza_name;
+
+-- How many Vegetarian and Meatlovers were ordered by each customer?
+
+SELECT customer_id AS customer,
+SUM(CASE WHEN names.pizza_name = 'Meatlovers' THEN 1 ELSE 0 END) AS qty_meat,
+SUM(CASE WHEN names.pizza_name = 'Vegetarian' THEN 1 ELSE 0 END) AS qty_veg
+FROM customer_orders AS orders
+JOIN pizza_names AS names ON orders.pizza_id = names.pizza_id
+GROUP BY customer_id
+ORDER BY customer_id;
+
+-- What was the maximum number of pizzas delivered in a single order?
+
+WITH single_order AS (
+    SELECT orders.order_id, COUNT(pizza_id) AS qty_pizzas
+    FROM customer_orders AS orders
+    JOIN runner_orders AS runner ON orders.order_id = runner.order_id
+    
+    WHERE runner.cancellation ISNULL
+    GROUP BY orders.order_id
+    )
+SELECT MAX(qty_pizzas) FROM single_order;
+
+
+-- For each customer, how many delivered pizzas had at least 1 change and how many had no changes?
+
+SELECT orders.customer_id,
+SUM(CASE WHEN orders.exclusions <> 'NO' OR orders.extras <> 'NO' THEN 1 ELSE 0 END) AS changes,
+SUM(CASE WHEN orders.exclusions = 'NO' OR orders.extras = 'NO' THEN 1 ELSE 0 END) AS no_changes
+FROM customer_orders AS orders
+JOIN runner_orders AS runners ON orders.order_id = runners.order_id
+WHERE runners.cancellation ISNULL
+GROUP BY orders.customer_id;
+
+-- How many pizzas were delivered that had both exclusions and extras?
+
+SELECT orders.customer_id,
+SUM(CASE WHEN orders.exclusions <> 'NO' AND orders.extras <> 'NO' THEN 1 ELSE 0 END) AS both_changes
+FROM customer_orders AS orders
+JOIN runner_orders AS runner ON orders.order_id = runner.order_id
+WHERE runner.cancellation ISNULL
+GROUP BY orders.customer_id;
+
+-- What was the total volume of pizzas ordered for each hour of the day?
+
+SELECT EXTRACT(HOUR FROM order_time) AS hour,
+COUNT (order_id) AS qty_pizzas
+FROM customer_orders
+GROUP BY hour
+ORDER BY hour;
+
+-- What was the volume of orders for each day of the week?
+
+SELECT 
+to_char(order_time, 'Day') as day,
+COUNT(order_id) as qty_pizzas
+FROM pizza_runner.customer_orders 
+GROUP BY day;
