@@ -1,0 +1,62 @@
+-- B. RUNNER AND CUSTOMER EXPERIENCE
+
+-- How many runners signed up for each 1 week period? (i.e. week starts 2021-01-01)
+SELECT EXTRACT(WEEK FROM registration_date) AS hiring_week,
+COUNT(runner_id) AS qty_runners
+from runners
+GROUP BY hiring_week;
+
+-- What was the average time in minutes it took for each runner to arrive at the Pizza Runner HQ to pickup the order?
+
+WITH orders_and_pickups AS (
+    SELECT runners.runner_id, customers.order_id, runners.pickup_time, customers.order_time,
+    EXTRACT(MINUTE FROM AGE(runners.pickup_time, customers.order_time)) AS minutes
+    FROM customer_orders AS customers
+    JOIN runner_orders AS runners ON customers.order_id = runners.order_id
+    WHERE runners.cancellation ISNULL
+    GROUP BY runners.runner_id, customers.order_id, runners.pickup_time, customers.order_time
+    )
+SELECT runner_id, 
+ROUND(AVG(minutes),2) AS avg_minutes
+FROM orders_and_pickups
+GROUP BY runner_id;
+
+
+-- Is there any relationship between the number of pizzas and how long the order takes to prepare?
+
+WITH preparation AS (
+    SELECT COUNT(customers.order_id) AS qty_pizzas, EXTRACT(MINUTE FROM AGE(runners.pickup_time, customers.order_time)) AS minutes
+    FROM customer_orders AS customers
+    JOIN runner_orders AS runners ON customers.order_id = runners.order_id
+    WHERE runners.cancellation ISNULL
+    GROUP BY runners.pickup_time, customers.order_time
+    )
+SELECT qty_pizzas, ROUND(AVG(minutes),2) AS avg_prep
+FROM preparation
+GROUP BY qty_pizzas;
+
+-- What was the average distance travelled for each customer?
+SELECT customers.customer_id, ROUND(AVG(distance::numeric),2) AS avg_distance
+FROM customer_orders AS customers
+JOIN runner_orders AS runners ON customers.order_id = runners.order_id
+WHERE runners.cancellation ISNULL
+GROUP BY customers.customer_id;
+
+-- What was the difference between the longest and shortest delivery times for all orders?
+SELECT MAX(duration)-MIN(duration) AS difference
+FROM runner_orders;
+
+-- What was the average speed for each runner for each delivery and do you notice any trend for these values?
+SELECT order_id, runner_id, distance, duration,
+ROUND(AVG(distance::numeric/duration*60::numeric),2) AS avg_speed
+FROM runner_orders
+WHERE cancellation ISNULL
+GROUP BY runner_id, order_id, distance, duration;
+
+-- What is the successful delivery percentage for each runner?
+SELECT runner_id, COUNT(distance) AS delivered, 
+COUNT(order_id) AS total_orders,
+100*(COUNT(distance)/COUNT(order_id)) AS pct_success
+FROM runner_orders
+GROUP BY runner_id
+ORDER BY runner_id;
